@@ -1,0 +1,740 @@
+Version "36.0-0";
+Libraries "Modeler.acml", "SystemLibrary.acml";
+Model membrec
+
+  Kc  As RealVariable
+    (Description:"Equilibrium constant [mol/dm3]", Fixed, 0.05);
+  k   As RealVariable
+    (Description:"Reaction rate constant [1/min]", Fixed, 0.7);
+  Cto As RealVariable
+    (Description:"Total molar concentration [mol/dm3]");
+  kc_ As RealVariable
+    (Description:"Transport coefficient [1/min]" , Fixed, 0.2);
+
+  V   As LengthDomain (DiscretizationMethod:"OCFE4",
+                        HighestOrderDerivative:1,
+                        Length:500,
+                        NumSections:2,
+                        SpacingPreference:5,
+                        Section(2).Location:100,
+                        Section(2).SpacingPreference:20);
+
+  Fa As Distribution1D(XDomain Is V, HighestOrderXDerivative:1)
+                        Of RealVariable(0); // [mol/min]
+  Fb As Distribution1D(XDomain Is V, HighestOrderXDerivative:1)
+                        Of RealVariable(0); // [mol/min]
+  Fc As Distribution1D(XDomain Is V, HighestOrderXDerivative:1)
+                        Of RealVariable(0); // [mol/min]
+
+  Nodes As IntegerSet([0 + V.Interior + V.EndNode]);
+  Ft(Nodes) As RealVariable; // [mol/min]
+  ra(Nodes) As RealVariable;
+
+  T         As temperature (Fixed, 227);
+  P         As pressure (Fixed, 8.308649999999998);
+  Q         As enthflow;
+
+  // Inlet variables
+  Fin       As RealVariable (Description:"Feed in", Fixed, 10) ; // [mol/min]
+  zin(Componentlist) As molefraction (Fixed);
+  hin       As enth_mol (Fixed,-0.08621361071361455) ;
+  Vin       As vol_mol (Fixed, 4.889630946135765);
+  MWin      As molweight;
+  zin("A"):1;
+  zin("B"): 0;
+  zin("C"):0;
+  Cto = 1 / Vin ;
+
+  
+ // Retentate variables
+  Fret      As RealVariable; // [mol/min]
+  zret(Componentlist) As molefraction;
+  hret      As enth_mol;
+  rhoVret   As dens_mol;
+  Vret      As vol_mol;
+  MWret     As molweight;
+
+  // Permeate variables
+  Fper      As RealVariable; // [mol/min]
+  zper(Componentlist) As molefraction;
+  hper      As enth_mol;
+  rhoVper   As dens_mol;
+  Vper      As vol_mol;
+  MWper     As molweight;
+
+
+  
+  // Boundary condition (Inlet)
+  Fa(0) = Fin * zin("A") ;
+  Fb(0) = Fin * zin("B") ;
+  Fc(0) = Fin * zin("C") ;
+
+  // Component mole balances
+  For i In [V.Interior + V.EndNode] Do
+    Fa(i).ddx = -ra(i) ;
+    Fb(i).ddx =  ra(i) - kc_ * Cto * (Fb(i)/Ft(i)) ;
+    Fc(i).ddx =  ra(i) ;
+  EndFor
+
+   // Total molar flow
+  Ft = Fa + Fb + Fc ;
+
+   // Reaction rate
+  ra = k * Cto * ((Fa/Ft) - Cto/Kc * (Fb/Ft) * (Fc/Ft)) ;
+
+  // Average molar weight
+  Call (MWin)  = pMolWeight(zin)  ;
+  Call (MWret) = pMolWeight(zret) ;
+  Call (MWper) = pMolWeight(zper) ;
+
+  // Specific Vapor Molar Enthalpy
+  Call (hret) = pEnth_Mol_Vap(T, P, zret) ;
+  Call (hper) = pEnth_Mol_Vap(T, P, zper) ;
+
+  // Specific Vapor Molar Density
+  Call (rhoVret) = pDens_Mol_Vap(T, P, zret) ;
+  Call (rhoVper) = pDens_Mol_Vap(T, P, zper) ;
+
+  // Mass Balance
+  Fin * MWin = Fret * MWret + Fper * MWper ;
+
+  // Heat Balance
+  Fin * hin + Q * 1000 / 60 = Fret * hret + Fper * hper ;
+    // Retentate condition
+  Fret = Ft(V.EndNode) ;
+  zret("A") = Fa(V.EndNode)/Ft(V.EndNode) ;
+  zret("B") = Fb(V.EndNode)/Ft(V.EndNode) ;
+  zret("C") = Fc(V.EndNode)/Ft(V.EndNode) ;
+
+    // Permeate condition
+  zper("A") = 0 ;
+  zper("B") = 1 ;
+  zper("C") = 0 ;
+  Vper = 1 / rhoVper ;
+  
+
+//SYSTEM SECTION - WARNING: DO NOT EDIT
+  Current_Icon : "System";
+SystemData : Text
+<FORMLIST DEFAULTFORM="AllVariables">
+</FORMLIST>
+EndText;
+
+//SYSTEM SECTION END
+End
+SystemData : Text
+globaldatasection
+EndText;
+SystemData : Text
+<FORMLIST DEFAULTFORM="AllGlobals">
+  <FORM NAME="AllGlobals" CLSID="{6BA76840-806B-11D0-BE51-0000C09984EF}">
+    { Version : 1
+SizeX : 3500
+SizeY : 2500
+ShowAllVariables : True
+ShowAllAttributes : False
+ExpandAll : True
+ShowRegistryAttributes : True
+VariablesPaths : [ ]
+AttributesPaths : [ Value Spec ]
+ColumnWidths : [ 1220 1220 1220 ]
+}
+  </FORM>
+</FORMLIST>
+EndText;
+
+FLOWSHEET
+  B1 as membrec;
+
+CONSTRAINTS
+  // Flowsheet variables and equations...
+END
+
+//SYSTEM SECTION - WARNING: DO NOT EDIT
+SystemData : Text
+<FORMLIST DEFAULTFORM="AllVariables">
+</FORMLIST>
+EndText;
+
+//SYSTEM SECTION END
+  ActiveTasks : [];
+  B1.Cto : 0.2045144124405323;
+  B1.Fa.ddx(0) : -0.1434723826328203;
+  B1.Fa.ddx(1) : -0.1339647841175394;
+  B1.Fa.ddx(10) : -3.000646653219238e-002;
+  B1.Fa.ddx(11) : -2.403359818858723e-002;
+  B1.Fa.ddx(12) : -2.256812024897611e-002;
+  B1.Fa.ddx(13) : -2.121276687315041e-002;
+  B1.Fa.ddx(14) : -1.724391374740086e-002;
+  B1.Fa.ddx(15) : -1.417178769048485e-002;
+  B1.Fa.ddx(16) : -1.341605449149955e-002;
+  B1.Fa.ddx(17) : -1.271663057917674e-002;
+  B1.Fa.ddx(18) : -1.0663738384076e-002;
+  B1.Fa.ddx(19) : -9.072002033568366e-003;
+  B1.Fa.ddx(2) : -0.1049822073125334;
+  B1.Fa.ddx(20) : -8.680441794878032e-003;
+  B1.Fa.ddx(21) : -7.387488470690804e-003;
+  B1.Fa.ddx(22) : -4.954537769303629e-003;
+  B1.Fa.ddx(23) : -4.113007189091108e-003;
+  B1.Fa.ddx(24) : -3.991032360319874e-003;
+  B1.Fa.ddx(25) : -3.902798393643698e-003;
+  B1.Fa.ddx(26) : -3.738161721363274e-003;
+  B1.Fa.ddx(27) : -3.675539832865224e-003;
+  B1.Fa.ddx(28) : -3.663708568115097e-003;
+  B1.Fa.ddx(29) : -3.653389574854275e-003;
+  B1.Fa.ddx(3) : -8.163755689498377e-002;
+  B1.Fa.ddx(30) : -3.620928064313311e-003;
+  B1.Fa.ddx(31) : -3.586698220775424e-003;
+  B1.Fa.ddx(32) : -3.575714704396706e-003;
+  B1.Fa.ddx(33) : -3.564276000777401e-003;
+  B1.Fa.ddx(34) : -3.52093880308179e-003;
+  B1.Fa.ddx(35) : -3.471825125976847e-003;
+  B1.Fa.ddx(36) : -3.456532067138365e-003;
+  B1.Fa.ddx(37) : -3.440852495775056e-003;
+  B1.Fa.ddx(38) : -3.384050198771527e-003;
+  B1.Fa.ddx(39) : -3.323410189918307e-003;
+  B1.Fa.ddx(4) : -7.588748201834954e-002;
+  B1.Fa.ddx(40) : -3.305149224336484e-003;
+  B1.Fa.ddx(5) : -7.056319888297687e-002;
+  B1.Fa.ddx(6) : -5.512007928342638e-002;
+  B1.Fa.ddx(7) : -4.330939674566725e-002;
+  B1.Fa.ddx(8) : -4.042560173822331e-002;
+  B1.Fa.ddx(9) : -3.776535327745578e-002;
+  B1.Fa.Value(0) : 10.;
+  B1.Fa.Value(1) : 9.687415400472837;
+  B1.Fa.Value(10) : 6.397196428191855;
+  B1.Fa.Value(11) : 6.188912594431638;
+  B1.Fa.Value(12) : 6.136412158173328;
+  B1.Fa.Value(13) : 6.087090704159981;
+  B1.Fa.Value(14) : 5.938795607015573;
+  B1.Fa.Value(15) : 5.817634612548093;
+  B1.Fa.Value(16) : 5.786553114061037;
+  B1.Fa.Value(17) : 5.757110989987058;
+  B1.Fa.Value(18) : 5.666890750584267;
+  B1.Fa.Value(19) : 5.59071886671024;
+  B1.Fa.Value(2) : 8.765653999248483;
+  B1.Fa.Value(20) : 5.570717016545588;
+  B1.Fa.Value(21) : 5.49896867103829;
+  B1.Fa.Value(22) : 5.313460278024824;
+  B1.Fa.Value(23) : 5.175512051683021;
+  B1.Fa.Value(24) : 5.138990361306491;
+  B1.Fa.Value(25) : 5.103455440244321;
+  B1.Fa.Value(26) : 4.985460708069104;
+  B1.Fa.Value(27) : 4.870757126799951;
+  B1.Fa.Value(28) : 4.837671333340151;
+  B1.Fa.Value(29) : 4.804688098046874;
+  B1.Fa.Value(3) : 8.046485912408286;
+  B1.Fa.Value(30) : 4.691996673207629;
+  B1.Fa.Value(31) : 4.580326330960854;
+  B1.Fa.Value(32) : 4.548037257001889;
+  B1.Fa.Value(33) : 4.515849446505203;
+  B1.Fa.Value(34) : 4.406070266490257;
+  B1.Fa.Value(35) : 4.297725164505547;
+  B1.Fa.Value(36) : 4.266491367225538;
+  B1.Fa.Value(37) : 4.235397258813479;
+  B1.Fa.Value(38) : 4.129655617953825;
+  B1.Fa.Value(39) : 4.02573560440102;
+  B1.Fa.Value(4) : 7.869040421878139;
+  B1.Fa.Value(40) : 3.995853449160242;
+  B1.Fa.Value(5) : 7.704084173322298;
+  B1.Fa.Value(6) : 7.219951132386287;
+  B1.Fa.Value(7) : 6.840791262377798;
+  B1.Fa.Value(8) : 6.74646198756098;
+  B1.Fa.Value(9) : 6.658380842118021;
+  B1.Fb.ddx(0) : 0.1434384272767973;
+  B1.Fb.ddx(1) : 0.1327305754928793;
+  B1.Fb.ddx(10) : 1.996172191975015e-002;
+  B1.Fb.ddx(11) : 1.369030648567114e-002;
+  B1.Fb.ddx(12) : 1.21585387626972e-002;
+  B1.Fb.ddx(13) : 1.074550866901616e-002;
+  B1.Fb.ddx(14) : 6.626403726680484e-003;
+  B1.Fb.ddx(15) : 3.467784631344043e-003;
+  B1.Fb.ddx(16) : 2.696629006007608e-003;
+  B1.Fb.ddx(17) : 1.985935336703301e-003;
+  B1.Fb.ddx(18) : -8.271536603019283e-005;
+  B1.Fb.ddx(19) : -1.659028684894016e-003;
+  B1.Fb.ddx(2) : 0.1005667031121395;
+  B1.Fb.ddx(20) : -2.041258159059223e-003;
+  B1.Fb.ddx(21) : -3.278744526961614e-003;
+  B1.Fb.ddx(22) : -5.394572804724276e-003;
+  B1.Fb.ddx(23) : -5.827877369471288e-003;
+  B1.Fb.ddx(24) : -5.826201332915652e-003;
+  B1.Fb.ddx(25) : -5.790099525905553e-003;
+  B1.Fb.ddx(26) : -5.530558946879921e-003;
+  B1.Fb.ddx(27) : -5.181619281982881e-003;
+  B1.Fb.ddx(28) : -5.076928380371255e-003;
+  B1.Fb.ddx(29) : -4.972260645119594e-003;
+  B1.Fb.ddx(3) : 7.514586037022664e-002;
+  B1.Fb.ddx(30) : -4.621784234759889e-003;
+  B1.Fb.ddx(31) : -4.292035733310627e-003;
+  B1.Fb.ddx(32) : -4.200629411237713e-003;
+  B1.Fb.ddx(33) : -4.111235031462006e-003;
+  B1.Fb.ddx(34) : -3.819756531808722e-003;
+  B1.Fb.ddx(35) : -3.551577612481255e-003;
+  B1.Fb.ddx(36) : -3.477717734703163e-003;
+  B1.Fb.ddx(37) : -3.405636263779566e-003;
+  B1.Fb.ddx(38) : -3.171203665930389e-003;
+  B1.Fb.ddx(39) : -2.956001267849498e-003;
+  B1.Fb.ddx(4) : 6.893231142662472e-002;
+  B1.Fb.ddx(40) : -2.896765052335439e-003;
+  B1.Fb.ddx(5) : 6.319389925625045e-002;
+  B1.Fb.ddx(6) : 4.662755964911008e-002;
+  B1.Fb.ddx(7) : 3.403782266404469e-002;
+  B1.Fb.ddx(8) : 3.097586682349974e-002;
+  B1.Fb.ddx(9) : 2.815763917467416e-002;
+  B1.Fb.Value(1) : 0.3111292877866339;
+  B1.Fb.Value(10) : 3.255000102668604;
+  B1.Fb.Value(11) : 3.384244580119271;
+  B1.Fb.Value(12) : 3.413354685485521;
+  B1.Fb.Value(13) : 3.439146706858077;
+  B1.Fb.Value(14) : 3.505734799003109;
+  B1.Fb.Value(15) : 3.544282159413741;
+  B1.Fb.Value(16) : 3.551218383642367;
+  B1.Fb.Value(17) : 3.556485579261785;
+  B1.Fb.Value(18) : 3.563502894135578;
+  B1.Fb.Value(19) : 3.556475368011031;
+  B1.Fb.Value(2) : 1.210145646958354;
+  B1.Fb.Value(20) : 3.552299284049638;
+  B1.Fb.Value(21) : 3.527584298323577;
+  B1.Fb.Value(22) : 3.387179364668774;
+  B1.Fb.Value(23) : 3.210672831974356;
+  B1.Fb.Value(24) : 3.158124107949969;
+  B1.Fb.Value(25) : 3.105704168523945;
+  B1.Fb.Value(26) : 2.929971943168173;
+  B1.Fb.Value(27) : 2.76391230361931;
+  B1.Fb.Value(28) : 2.717667367742859;
+  B1.Fb.Value(29) : 2.672363648558805;
+  B1.Fb.Value(3) : 1.88650764048697;
+  B1.Fb.Value(30) : 2.523781182926675;
+  B1.Fb.Value(31) : 2.385748940122881;
+  B1.Fb.Value(32) : 2.347465123376813;
+  B1.Fb.Value(33) : 2.309996456354021;
+  B1.Fb.Value(34) : 2.187192181609447;
+  B1.Fb.Value(35) : 2.073054877331293;
+  B1.Fb.Value(36) : 2.041367753819904;
+  B1.Fb.Value(37) : 2.010338738096331;
+  B1.Fb.Value(38) : 1.90850260332078;
+  B1.Fb.Value(39) : 1.813628417578483;
+  B1.Fb.Value(4) : 2.048789211542679;
+  B1.Fb.Value(40) : 1.787244887757424;
+  B1.Fb.Value(5) : 2.197586772312582;
+  B1.Fb.Value(6) : 2.62002895129333;
+  B1.Fb.Value(7) : 2.930203159673618;
+  B1.Fb.Value(8) : 3.003429792250458;
+  B1.Fb.Value(9) : 3.070030817025474;
+  B1.Fc.ddx(0) : 0.1434723826328194;
+  B1.Fc.ddx(1) : 0.1339647841175394;
+  B1.Fc.ddx(10) : 3.000646653219238e-002;
+  B1.Fc.ddx(11) : 2.403359818858723e-002;
+  B1.Fc.ddx(12) : 2.256812024897611e-002;
+  B1.Fc.ddx(13) : 2.121276687315041e-002;
+  B1.Fc.ddx(14) : 1.724391374740086e-002;
+  B1.Fc.ddx(15) : 1.417178769048486e-002;
+  B1.Fc.ddx(16) : 1.341605449149955e-002;
+  B1.Fc.ddx(17) : 1.271663057917674e-002;
+  B1.Fc.ddx(18) : 1.0663738384076e-002;
+  B1.Fc.ddx(19) : 9.072002033568366e-003;
+  B1.Fc.ddx(2) : 0.1049822073125334;
+  B1.Fc.ddx(20) : 8.680441794878036e-003;
+  B1.Fc.ddx(21) : 7.387488470690804e-003;
+  B1.Fc.ddx(22) : 4.954537769303629e-003;
+  B1.Fc.ddx(23) : 4.113007189091108e-003;
+  B1.Fc.ddx(24) : 3.991032360319874e-003;
+  B1.Fc.ddx(25) : 3.902798393643698e-003;
+  B1.Fc.ddx(26) : 3.738161721363274e-003;
+  B1.Fc.ddx(27) : 3.675539832865224e-003;
+  B1.Fc.ddx(28) : 3.663708568115097e-003;
+  B1.Fc.ddx(29) : 3.653389574854275e-003;
+  B1.Fc.ddx(3) : 8.163755689498377e-002;
+  B1.Fc.ddx(30) : 3.62092806431331e-003;
+  B1.Fc.ddx(31) : 3.586698220775424e-003;
+  B1.Fc.ddx(32) : 3.575714704396706e-003;
+  B1.Fc.ddx(33) : 3.564276000777401e-003;
+  B1.Fc.ddx(34) : 3.52093880308179e-003;
+  B1.Fc.ddx(35) : 3.471825125976847e-003;
+  B1.Fc.ddx(36) : 3.456532067138364e-003;
+  B1.Fc.ddx(37) : 3.440852495775056e-003;
+  B1.Fc.ddx(38) : 3.384050198771527e-003;
+  B1.Fc.ddx(39) : 3.323410189918307e-003;
+  B1.Fc.ddx(4) : 7.588748201834954e-002;
+  B1.Fc.ddx(40) : 3.305149224336484e-003;
+  B1.Fc.ddx(5) : 7.056319888297687e-002;
+  B1.Fc.ddx(6) : 5.512007928342637e-002;
+  B1.Fc.ddx(7) : 4.330939674566726e-002;
+  B1.Fc.ddx(8) : 4.04256017382233e-002;
+  B1.Fc.ddx(9) : 3.776535327745578e-002;
+  B1.Fc.Value(1) : 0.3125845995271618;
+  B1.Fc.Value(10) : 3.602803571808145;
+  B1.Fc.Value(11) : 3.811087405568364;
+  B1.Fc.Value(12) : 3.863587841826673;
+  B1.Fc.Value(13) : 3.912909295840021;
+  B1.Fc.Value(14) : 4.061204392984426;
+  B1.Fc.Value(15) : 4.182365387451909;
+  B1.Fc.Value(16) : 4.213446885938964;
+  B1.Fc.Value(17) : 4.242889010012944;
+  B1.Fc.Value(18) : 4.333109249415734;
+  B1.Fc.Value(19) : 4.409281133289761;
+  B1.Fc.Value(2) : 1.234346000751516;
+  B1.Fc.Value(20) : 4.429282983454411;
+  B1.Fc.Value(21) : 4.501031328961709;
+  B1.Fc.Value(22) : 4.686539721975175;
+  B1.Fc.Value(23) : 4.824487948316977;
+  B1.Fc.Value(24) : 4.861009638693507;
+  B1.Fc.Value(25) : 4.896544559755678;
+  B1.Fc.Value(26) : 5.014539291930893;
+  B1.Fc.Value(27) : 5.129242873200048;
+  B1.Fc.Value(28) : 5.162328666659848;
+  B1.Fc.Value(29) : 5.195311901953126;
+  B1.Fc.Value(3) : 1.953514087591713;
+  B1.Fc.Value(30) : 5.308003326792371;
+  B1.Fc.Value(31) : 5.419673669039145;
+  B1.Fc.Value(32) : 5.45196274299811;
+  B1.Fc.Value(33) : 5.484150553494797;
+  B1.Fc.Value(34) : 5.593929733509742;
+  B1.Fc.Value(35) : 5.702274835494452;
+  B1.Fc.Value(36) : 5.733508632774461;
+  B1.Fc.Value(37) : 5.764602741186521;
+  B1.Fc.Value(38) : 5.870344382046173;
+  B1.Fc.Value(39) : 5.97426439559898;
+  B1.Fc.Value(4) : 2.130959578121861;
+  B1.Fc.Value(40) : 6.004146550839757;
+  B1.Fc.Value(5) : 2.295915826677702;
+  B1.Fc.Value(6) : 2.780048867613714;
+  B1.Fc.Value(7) : 3.159208737622202;
+  B1.Fc.Value(8) : 3.25353801243902;
+  B1.Fc.Value(9) : 3.34161915788198;
+  B1.Fper : 4.216901663082333;
+  B1.Fret : 11.78724488775742;
+  B1.Ft(0) : 10.;
+  B1.Ft(1) : 10.31112928778664;
+  B1.Ft(10) : 13.2550001026686;
+  B1.Ft(11) : 13.38424458011927;
+  B1.Ft(12) : 13.41335468548552;
+  B1.Ft(13) : 13.43914670685808;
+  B1.Ft(14) : 13.50573479900311;
+  B1.Ft(15) : 13.54428215941374;
+  B1.Ft(16) : 13.55121838364237;
+  B1.Ft(17) : 13.55648557926179;
+  B1.Ft(18) : 13.56350289413558;
+  B1.Ft(19) : 13.55647536801103;
+  B1.Ft(2) : 11.21014564695835;
+  B1.Ft(20) : 13.55229928404964;
+  B1.Ft(21) : 13.52758429832358;
+  B1.Ft(22) : 13.38717936466877;
+  B1.Ft(23) : 13.21067283197435;
+  B1.Ft(24) : 13.15812410794996;
+  B1.Ft(25) : 13.10570416852394;
+  B1.Ft(26) : 12.92997194316817;
+  B1.Ft(27) : 12.76391230361931;
+  B1.Ft(28) : 12.71766736774286;
+  B1.Ft(29) : 12.6723636485588;
+  B1.Ft(3) : 11.88650764048697;
+  B1.Ft(30) : 12.52378118292668;
+  B1.Ft(31) : 12.38574894012288;
+  B1.Ft(32) : 12.34746512337681;
+  B1.Ft(33) : 12.30999645635402;
+  B1.Ft(34) : 12.18719218160945;
+  B1.Ft(35) : 12.07305487733129;
+  B1.Ft(36) : 12.0413677538199;
+  B1.Ft(37) : 12.01033873809633;
+  B1.Ft(38) : 11.90850260332078;
+  B1.Ft(39) : 11.81362841757848;
+  B1.Ft(4) : 12.04878921154268;
+  B1.Ft(40) : 11.78724488775742;
+  B1.Ft(5) : 12.19758677231258;
+  B1.Ft(6) : 12.62002895129333;
+  B1.Ft(7) : 12.93020315967362;
+  B1.Ft(8) : 13.00342979225046;
+  B1.Ft(9) : 13.07003081702547;
+  B1.hper : 3.639566486600483e-002;
+  B1.hret : -2.05765572395606e-002;
+  B1.MWin : 44.09652000000001;
+  B1.MWper : 42.08064000000001;
+  B1.MWret : 22.35596882135924;
+  B1.Q : 4.638432766253575e-002;
+  B1.ra(0) : 0.1431600887083726;
+  B1.ra(1) : 0.1339647841175394;
+  B1.ra(10) : 3.000646653219238e-002;
+  B1.ra(11) : 2.403359818858723e-002;
+  B1.ra(12) : 2.256812024897611e-002;
+  B1.ra(13) : 2.121276687315041e-002;
+  B1.ra(14) : 1.724391374740086e-002;
+  B1.ra(15) : 1.417178769048486e-002;
+  B1.ra(16) : 1.341605449149955e-002;
+  B1.ra(17) : 1.271663057917674e-002;
+  B1.ra(18) : 1.0663738384076e-002;
+  B1.ra(19) : 9.072002033568366e-003;
+  B1.ra(2) : 0.1049822073125334;
+  B1.ra(20) : 8.680441794878036e-003;
+  B1.ra(21) : 7.387488470690804e-003;
+  B1.ra(22) : 4.954537769303629e-003;
+  B1.ra(23) : 4.113007189091108e-003;
+  B1.ra(24) : 3.991032360319874e-003;
+  B1.ra(25) : 3.902798393643698e-003;
+  B1.ra(26) : 3.738161721363274e-003;
+  B1.ra(27) : 3.675539832865224e-003;
+  B1.ra(28) : 3.663708568115097e-003;
+  B1.ra(29) : 3.653389574854275e-003;
+  B1.ra(3) : 8.163755689498377e-002;
+  B1.ra(30) : 3.62092806431331e-003;
+  B1.ra(31) : 3.586698220775424e-003;
+  B1.ra(32) : 3.575714704396706e-003;
+  B1.ra(33) : 3.564276000777401e-003;
+  B1.ra(34) : 3.52093880308179e-003;
+  B1.ra(35) : 3.471825125976847e-003;
+  B1.ra(36) : 3.456532067138364e-003;
+  B1.ra(37) : 3.440852495775056e-003;
+  B1.ra(38) : 3.384050198771527e-003;
+  B1.ra(39) : 3.323410189918307e-003;
+  B1.ra(4) : 7.588748201834954e-002;
+  B1.ra(40) : 3.305149224336484e-003;
+  B1.ra(5) : 7.056319888297687e-002;
+  B1.ra(6) : 5.512007928342637e-002;
+  B1.ra(7) : 4.330939674566726e-002;
+  B1.ra(8) : 4.04256017382233e-002;
+  B1.ra(9) : 3.776535327745578e-002;
+  B1.rhoVper : 0.1998034298354128;
+  B1.rhoVret : 0.1998034298354128;
+  B1.Vper : 5.004919088845201;
+  B1.zper("A") : 0.;
+  B1.zper("B") : 1.;
+  B1.zper("C") : 0.;
+  B1.zret("A") : 0.3389980854058994;
+  B1.zret("B") : 0.1516253293094562;
+  B1.zret("C") : 0.5093765852846444;
+  Graphics : TEXT CLSID {A0DFFFE6-908E-11CE-A964-0000C08C668E}
+# of PFS Objects = 2
+SIZE -1.19442 -0.194424 -0.388849 0.911151
+BLOCK
+ID: B1
+Version: 1
+ICON: "System"
+Flag 0
+Section 
+At -0.694424 0.261151
+Label At 0.000000 0.000000
+Scale 1.000000 Modifier 0
+LEGEND
+Version: 2
+Dim: -4.23183 -3.2 -2.97461 -3.44305
+Size: 0.0167321
+Font: 1 0 =Times New Roman
+# of PFS Objects = 0
+VIEWPORT -6.321043 25.252508 3.300000 -10.721535
+LAYOUT
+TableFormat 1
+Pages 1 1 1 1
+PAGESETUP
+PAPERSIZE 
+PAPERSOURCE 
+ORIENTATION -1
+PRINTPAGENO 1 1
+LEFTMARGIN 0.5"
+RIGHTMARGIN 0.5"
+TOPMARGIN 0.5"
+BOTTOMMARGIN 0.5"
+VISIBILITY 0.030000
+PFDFLAG 255 255
+PFDMODE 0
+SCALE 0.016732
+
+ENDTEXT;
+END
+
+Properties
+Package : "PropertiesPlus";
+TimeStamp : "30727374 -853014992";
+
+Default as ComponentList; 
+Within Default
+  Components :["A","B","C"];
+EndWithin
+End
+
+Options
+  AbsoluteSingularityTol: 1.e-004;
+  AbsPerturb: 1.e-005;
+  AbsTearTol: 1.e-005;
+  AbsTol: 1.e-005;
+  AssignmentWarningsEnabled: True;
+  ChangeTol: 1.e-005;
+  CheckProcDerivs: "Off";
+  Compression: True;
+  CurrentUOMSet: "Metric";
+  Decomposer.ProgID: "AspenTech.Decomposer";
+  Decomposition.MultipleGroup: True;
+  DerivAbsTol: 1.e-003;
+  DerivRelTol: 0.1;
+  EqnTol: 1.e-005;
+  EquationSensCheck: False;
+  EquationSensTol: 10000000000.;
+  EstimationPrintLevel: "Medium";
+  EstimationReturntoBestPoint: False;
+  EstimationSolver: 2;
+  Estimator: 1;
+  ExplicitEventTolerance: 1.e-005;
+  Feasopt.MaxAbsStep: 10.;
+  Feasopt.MaxEval: 100;
+  Feasopt.MaxRelStep: 10.;
+  Feasopt.OptTol: 1.e-004;
+  Homotopy.InitialStep: 0.1;
+  Homotopy.MaximumStep: 1.;
+  Homotopy.MinimumStep: 1.e-002;
+  Homotopy.StepDecrement: 0.5;
+  Homotopy.StepIncrement: 10;
+  Integration.AbsErrorTol: 1.e-005;
+  Integration.AbsTearTol: 1.e-005;
+  Integration.DiscontinuityEventTol: 1.e-005;
+  Integration.EnforceMinStep: False;
+  Integration.IncSensErrors: False;
+  Integration.InitStepSize: 5.e-003;
+  Integration.ItplToComTime: True;
+  Integration.LocateIEvents: False;
+  Integration.MaxOrder: 5;
+  Integration.MaxStepSize: 1.;
+  Integration.MinStepSize: 1.e-003;
+  Integration.ProgID: "AspenTech.UnifiedIntegrator";
+  Integration.RcvTornVars: False;
+  Integration.ReInitAfterEE: False;
+  Integration.ReInitAfterIE: False;
+  Integration.RelErrorTol: 1.e-005;
+  Integration.RelTearTol: 1.e-005;
+  Integration.RewindToLastConvStep: False;
+  Integration.ShowHIErrors: 0;
+  Integration.ShowHTIErrors: 0;
+  Integration.StepRedFact: 0.5;
+  Integration.StepSize: 1.e-002;
+  Integration.StepSizeType: "Variable";
+  Integration.TestSAndAVars: False;
+  Integration.UsePrevAfterEE: False;
+  Integrator: "ImplicitEuler";
+  KeepCompiledEvaluationFiles: False;
+  LinearSolver: "MA48";
+  ListEquivalenceVariables: True;
+  LogLikelihood.MaxIter: 100;
+  LogLikelihood.SolTol: 1.e-004;
+  MA48.DropTol: 0.;
+  MA48.EnableRefineIter: True;
+  MA48.MaxRefineIter: 10;
+  MA48.PivotSearch: 3;
+  MA48.PivotTol: 1.e-050;
+  MA48.Repivot: 0;
+  MA48.UseTranspose: 0;
+  MaxTearIter: 100;
+  Nl2sol.AbsFuncTol: 1.e-020;
+  Nl2sol.FalseConvTol: 0.;
+  Nl2sol.MaxIter: 50;
+  Nl2sol.RelFuncTol: 1.e-004;
+  Nl2sol.SolTol: 1.e-004;
+  NLASolver: "Standard";
+  Nonlinear.AbsPert: 1.e-005;
+  Nonlinear.BestOnFail: True;
+  Nonlinear.BoundClip: 1.e-006;
+  Nonlinear.BoundFrac: 1.;
+  Nonlinear.ConvCrit: "Residual";
+  Nonlinear.CreepIter: 0;
+  Nonlinear.CreepSize: 0.1;
+  Nonlinear.Dogleg: False;
+  Nonlinear.HiResidual: 0;
+  Nonlinear.HiVarSteps: 0;
+  Nonlinear.MathsPrint: 0;
+  Nonlinear.MaxDivSteps: 10;
+  Nonlinear.MaxFastNewtonSteps: 5;
+  Nonlinear.MaxIter: 100;
+  Nonlinear.MaxStepRed: 10;
+  Nonlinear.MaxVarStep: 50.;
+  Nonlinear.Method: "Mixed Newton";
+  Nonlinear.RangeFrac: 0.;
+  Nonlinear.SingPert: 1.e-002;
+  OptimizationObjFun: "Minimize";
+  OptimizationPrintLevel: "Medium";
+  Optimizer: 1;
+  PrintLevel: 2;
+  PropInfo: -1;
+  RelativeSingularityCheck: True;
+  RelativeSingularityTol: 1.e-002;
+  RelPerturb: 1.e-005;
+  RelTearTol: 1.e-005;
+  RelTol: 1.e-005;
+  RunMode: "SteadyState";
+  SaveFreeVariableValues: True;
+  Scaling: False;
+  SensErrorCheck: True;
+  SnapshotSettings.EnableDynInitialization: True;
+  SnapshotSettings.EnableFileSaved: False;
+  SnapshotSettings.EnableInitialization: True;
+  SnapshotSettings.EnableInitialSpec: True;
+  SnapshotSettings.EnableMaximum: True;
+  SnapshotSettings.EnableonReinitialization: False;
+  SnapshotSettings.EnableProblemEdit: True;
+  SnapshotSettings.EnableRegularSnapshot: False;
+  SnapshotSettings.EnableSteadyState: True;
+  SnapshotSettings.Interval: 2.;
+  SnapshotSettings.Maximum: 10;
+  SnapshotSettings.SaveConvergedOnly: True;
+  SnapshotSettings.TakeAutoSnapshots: True;
+  SyncSteps: "Full";
+  Tearing: "update";
+  TearUpdate: "Direct";
+  TimeSettings.CommunicationInterval: 1.e-002;
+  TimeSettings.CommunicationUnits: "Hours";
+  TimeSettings.DisplayUpdateInterval: 2000;
+  TimeSettings.EnablePauseAt: False;
+  TimeSettings.EnableStepFor: False;
+  TimeSettings.PauseAt: 0.;
+  TimeSettings.RealTimeSyncFactor: 0.;
+  TimeSettings.RecordHistory: False;
+  TimeSettings.StepFor: 0;
+  TimeSettings.TimeDisplayUnits: "Hours";
+  UseCompiledEvaluation: False;
+  UseSavedSnapshotOnLoad: False;
+  WatchGroup: 0;
+  WatchSubGroup: 0;
+  Wegstein.MaxAcceleration: 0.;
+  Wegstein.MinAcceleration: -5.;
+  OpenLASolver: "";
+  OpenNLASolver: "";
+  OpenOPTSolver: "";
+  OpenESTSolver: "";
+End
+Optimization
+  IsDynamic : FALSE;
+  ElementSizeBoundsAutomatic : TRUE;
+  EndTime : 1.000000000000000;
+  Control.FinalTime_Initial : 1.000000000000000;
+  Control.FinalTime_Upper : 2.000000000000000;
+  Control.FinalTime_Lower : 0.5000000000000000;
+  Control.FinalTime_IsFixed : TRUE;
+  Control.FinalTime_IsObjective : FALSE;
+  Control.Elements : 5;
+  Control.FixedInterval : TRUE;
+  Control.MovingElementsVarying : FALSE;
+  Control.PiecewiseLinear : FALSE;
+  Control(0) : 0.2000000000000000, 0.05000000000000000, 0.4000000000000000 ;
+  Control(1) : 0.2000000000000000, 0.05000000000000000, 0.4000000000000000 ;
+  Control(2) : 0.2000000000000000, 0.05000000000000000, 0.4000000000000000 ;
+  Control(3) : 0.2000000000000000, 0.05000000000000000, 0.4000000000000000 ;
+  Control(4) : 0.2000000000000000, 0.05000000000000000, 0.4000000000000000 ;
+End
+Estimation
+  CalcHeteroParams : TRUE;
+  ExperimentTimeUnit: "";
+End
+Homotopy
+ Enabled: FALSE;
+End
+SimulationAccessExtension
+  ENABLED: false;
+End
+OnLineLinks
+  Protocol: "OPC", 1;
+  //Server: "";
+  IO: Synchronous, Cached;
+  Bounds: Clip;
+  Quality: UseLast;
+  Update: 1000;
+  PrintLevel: 2;
+  Enabled: OFF;
+  Input Events : Before SS Run, After DYN Step, After INI Step, Before INI Run;
+  Output Events: After SS Run, After DYN Step, After INI Step, After INI Run;
+End
