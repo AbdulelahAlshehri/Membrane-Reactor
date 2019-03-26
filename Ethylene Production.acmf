@@ -68,20 +68,23 @@ Model MemRec
   r2 As RealVariable
   (Description:"radial dimension in ceramic support (m)");
   R As RealVariable
-  (Description:"universal gas constant (kJ/kg mol K)", Fixed, 8.314);
+  (Description:"universal gas constant (kJ/kg mol K) (J/mol C)", Fixed, 8.314);
   Rt1 As RealVariable
   (Description:"inner tube radius (m)");
   Rt2 As RealVariable
   (Description:"outer radius of composite tube (m)");
-  Rq1 As RealVariable
+  Rx1 As RealVariable
   (Description:"rate of hydrogenation reaction (kg mol/kg s)");
-  Rq2 As RealVariable
+  Rx2 As RealVariable
   (Description:"2 rate of hydrogenation reaction (kg mol/kg s)");
-  T   As temperature (Fixed, 227);
+  T   As temperature (Fixed, 700);
+  T0   As temperature (Fixed,298.15 );
   u1 As RealVariable
   (Description:"axial velocity (m2/s)");
   y(Componentlist) As RealVariable
   (Description:"mole fraction of component i");
+
+  
   //Greek
   gamma1(Componentlist) As RealVariable
   (Description:"stiochiometric coefficient of component i in reaction 1", Fixed);
@@ -94,7 +97,90 @@ Model MemRec
   theta2 As RealVariable
   (Description:"volume fraction of catalyst 2");
 
-    
+//  equilibrium constant parameters 
+Acp(Componentlist) As RealVariable 
+(Description:" Heat Capacity Expansion Coefficient", Fixed);
+  Acp("A"):49.37E-3;
+  Acp("B"):40.75E-3;
+  Acp("C"):28.84E-3;
+  Acp("D"):74.06E-3;
+  Acp("E"): 94.14E-3;
+  
+Bcp(Componentlist) As RealVariable 
+(Description:" Heat Capacity Expansion Coefficient", Fixed);
+  Bcp("A"):13.92E-5;
+  Bcp("B"):11.47E-5;
+  Bcp("C"):0.00765E-5;
+  Bcp("D"): 32.95E-5;
+  Bcp("E"): 49.62E-5;
+ 
+Ccp(Componentlist) As RealVariable 
+(Description:" Heat Capacity Expansion Coefficient", Fixed);
+  Ccp("A"):-5.816E-8;
+  Ccp("B"): -6.891E-8;
+  Ccp("C"):0.3288E-8;
+  Ccp("D"): -25.20E-8;
+  Ccp("E"): -31.90E-8;
+  
+Dcp(Componentlist) As RealVariable 
+(Description:" Heat Capacity Expansion Coefficient", Fixed);
+  Dcp("A"):7.280E-12;
+  Dcp("B"): 17.66E-12;
+  Dcp("C"):-0.8698E-12;
+  Dcp("D"): 77.57;
+  Dcp("E"): 80.63E-12;
+
+Hf(Componentlist) As RealVariable 
+(Description:" Heat of formation (J/mol)", Fixed);
+  Hf("A"):-83820;
+  Hf("B"): 52510;
+  Hf("C"):0;
+  Hf("D"): 82930;
+  Hf("E"): -123140;
+
+Gf(Componentlist) As RealVariable 
+(Description:" Gibbs free energy of formation(J/mol)", Fixed);
+  Gf("A"):-31855;
+  Gf("B"): 68460;
+  Gf("C"):0;
+  Gf("D"): 129665;
+  Gf("E"): 31920; 
+
+  // Difference (delta) of Heat Capacity Expansion Coefficients for the primary reaction
+  dA As RealVariable(Description:"delta A => Products- Reactants");
+  dA= Acp("B") + Acp("C") -  Acp("A");
+  
+  dB As RealVariable(Description:"delta B ");
+  dB= Bcp("B") + Bcp("C") -  Bcp("A");
+  
+  dC As RealVariable(Description:"delta C");
+  dC= Ccp("B") + Ccp("C") -  Ccp("A");
+
+  dD As RealVariable(Description:"delta D");
+  dD= Dcp("B") + Dcp("C") -  Dcp("A");
+  
+  dGf As RealVariable(Description:"delta Gibbs");
+  dGf = Gf("B") - Gf("A");
+  
+  dHf As RealVariable(Description:"delta H");
+  dHf = Hf("B") - Hf("A");
+  
+  dH As RealVariable(Description:"delta H");
+  dH = dGf- dHf;
+  I0 As RealVariable(Description:"Reference Equilibrium constant");
+
+// Reaction Kinetics for the primary reaction:
+  Rx1 = k1 *(Pi("A") - (Pi("B")*Pi("C"))/Keq); // (2)
+  k1 = 4.39 * exp(-9090.69 / T); //(3)
+  LOGe(Keq) = - dH/(R*T) + dA*LOGe(T)/R + dB *T/(2*R) + dC *T^2/(6*R) +dD*T^3/(12*R) +I0; //(4)
+  I0 = dH/(R*T0) - dA*LOGe(T0)/R - dB *T0/ (2*R) - dC*T0^2/(6*R) - dD*T0^3/(12*R) - dGf/(R*T0); //(5)
+
+// Reaction Kinetics for the auxiliary reaction:
+  Rx2 = k2 * KB* Pi("C")* Pi("D")/( (1+ KB*Pi("D"))* (Pi("C")+ Pi("D")));
+
+
+
+ /* Basic model   
   Kc  As RealVariable
     (Description:"Equilibrium constant [mol/dm3]", Fixed, 5E-2);
   k   As RealVariable
@@ -130,7 +216,7 @@ Model MemRec
   P         As pressure (Fixed, 8.308649999999998);
   Q         As enthflow;
 
-  // Inlet variables
+  // Inlet conditions
   Fin       As RealVariable (Description:"Feed in", Fixed, 10) ; // [mol/min]
   zin(Componentlist) As molefraction (Fixed);
   hin       As enth_mol (Fixed,-0.08621361071361455) ;
@@ -219,6 +305,7 @@ Model MemRec
   zper("E") = 0 ;
   Vper = 1 / rhoVper ;
   
+*/
 
 //SYSTEM SECTION - WARNING: DO NOT EDIT
   Current_Icon : "System";
@@ -226,6 +313,337 @@ SystemData : Text
 <FORMLIST DEFAULTFORM="AllVariables">
 </FORMLIST>
 EndText;
+
+//UNCOMPILED SECTION - WARNING: DO NOT EDIT
+Model MemRec
+// Components: A: Ethane, B: Ethene, C: Hydrogen, D: Benzene, E: Cyclohexane
+// Reaction 1: A => B + C
+// Reaction 2: 3C + D => E
+
+//Given Constants:
+
+//From table 1
+  L0  As RealVariable
+    (Description:"Reactor length (m)", Fixed, 0.15);
+  Rc1  As RealVariable
+    (Description:"Radius of catalyst bed (m) ", Fixed, 0.15);
+  NA  As RealVariable
+    (Description:"Palladium–silver alloy film thickness (um)", Fixed, 0.15);
+  NA2  As RealVariable
+    (Description:"Thickness of ceramic support (m) ", Fixed, 0.15);
+  NA3  As RealVariable
+    (Description:"Diameter of catalyst pellets (m) ", Fixed, 0.15);
+  rho1  As RealVariable
+    (Description:"density of catalyst 1 (kg/m3)", Fixed, 0.15);
+  rho2  As RealVariable
+    (Description:"density of catalyst 2 (kg/m3)", Fixed, 0.15);
+  ep1  As RealVariable
+    (Description:"porosity of catalyst bed", Fixed, 0.15);
+  ep2  As RealVariable
+    (Description:"porosity of ceramic support", Fixed, 0.15);
+  NA4  As RealVariable
+    (Description:"Catalyst weight (kg) ", Fixed, 0.15);
+  Pt  As RealVariable
+    (Description:"Pressure in tube side (kPa) ", Fixed, 0.15);
+  Ps  As RealVariable
+    (Description:"Pressure of sweep gas (kPa)", Fixed, 0.15);
+  NA5  As RealVariable
+    (Description:"Flow rate of sweep gas stream (m3 (STP)/s)", Fixed, 0.15);
+
+//From Nomenclature
+  A  As RealVariable
+    (Description:"membrane area (m2)", Fixed,0);
+    
+  Cc(Componentlist) As RealVariable
+  (Description:"concentration of component i in ceramic support(kg mol/m3)");
+
+  Ct(Componentlist) As RealVariable
+  (Description:"concentration of component i in tube side(kg mol/m3)");
+  
+  De(Componentlist,Componentlist) As RealVariable
+  (Description:"effective diffusion coefficient of component i (m2/s)");
+  FsH  As RealVariable
+    (Description:"hydrogen molar flow rate in shell side (kg mol/s)", Fixed,0);
+  dHr  As RealVariable
+    (Description:"standard heat of reaction (kJ/kg mol)", Fixed,0);
+  k1   As RealVariable
+    (Description:"reaction rate constant of dehydrogenation reaction(kg mol/kg s Pa)");
+  k2   As RealVariable
+    (Description:"reaction rate constant of hydrogenation reaction(kg mol/kg s)");
+  KB As RealVariable
+    (Description:"adsorption constant for benzene (Pa-1)");
+  Keq As RealVariable
+    (Description:"equilibrium constant of dehydrogenation reaction(Pa)"); 
+  L As RealVariable
+  (Description:"dimensionless reactor length");
+  Pi(Componentlist) As RealVariable
+  (Description:"partial pressure of component i (Pa)");
+  Ps(ComponenAs RealVariable
+  (Description:"partial pressure of component i in the shell side (Pa)");  
+  r1 As RealVariable
+  (Description:"radial dimension in catalyst bed (m)");
+  r2 As RealVariable
+  (Description:"radial dimension in ceramic support (m)");
+  R As RealVariable
+  (Description:"universal gas constant (kJ/kg mol K) (J/mol C)", Fixed, 8.314);
+  Rt1 As RealVariable
+  (Description:"inner tube radius (m)");
+  Rt2 As RealVariable
+  (Description:"outer radius of composite tube (m)");
+  Rx1 As RealVariable
+  (Description:"rate of hydrogenation reaction (kg mol/kg s)");
+  Rx2 As RealVariable
+  (Description:"2 rate of hydrogenation reaction (kg mol/kg s)");
+  T   As temperature (Fixed, 700);
+  T0   As temperature (Fixed,298.15 );
+  u1 As RealVariable
+  (Description:"axial velocity (m2/s)");
+  y(Componentlist) As RealVariable
+  (Description:"mole fraction of component i");
+
+  
+  //Greek
+  gamma1(Componentlist) As RealVariable
+  (Description:"stiochiometric coefficient of component i in reaction 1", Fixed);
+  gamma2(Componentlist) As RealVariable
+  (Description:"stiochiometric coefficient of component i in reaction 2", Fixed);
+  delta As RealVariable
+  (Description:"membrane thickness(m)", 6E-6);
+  theta1 As RealVariable
+  (Description:"volume fraction of catalyst 1");
+  theta2 As RealVariable
+  (Description:"volume fraction of catalyst 2");
+
+//  equilibrium constant parameters 
+Acp(Componentlist) As RealVariable 
+(Description:" Heat Capacity Expansion Coefficient", Fixed);
+  Acp("A"):49.37E-3;
+  Acp("B"):40.75E-3;
+  Acp("C"):28.84E-3;
+  Acp("D"):74.06E-3;
+  Acp("E"): 94.14E-3;
+  
+Bcp(Componentlist) As RealVariable 
+(Description:" Heat Capacity Expansion Coefficient", Fixed);
+  Bcp("A"):13.92E-5;
+  Bcp("B"):11.47E-5;
+  Bcp("C"):0.00765E-5;
+  Bcp("D"): 32.95E-5;
+  Bcp("E"): 49.62E-5;
+ 
+Ccp(Componentlist) As RealVariable 
+(Description:" Heat Capacity Expansion Coefficient", Fixed);
+  Ccp("A"):-5.816E-8;
+  Ccp("B"): -6.891E-8;
+  Ccp("C"):0.3288E-8;
+  Ccp("D"): -25.20E-8;
+  Ccp("E"): -31.90E-8;
+  
+Dcp(Componentlist) As RealVariable 
+(Description:" Heat Capacity Expansion Coefficient", Fixed);
+  Dcp("A"):7.280E-12;
+  Dcp("B"): 17.66E-12;
+  Dcp("C"):-0.8698E-12;
+  Dcp("D"): 77.57;
+  Dcp("E"): 80.63E-12;
+
+Hf(Componentlist) As RealVariable 
+(Description:" Heat of formation (J/mol)", Fixed);
+  Hf("A"):-83820;
+  Hf("B"): 52510;
+  Hf("C"):0;
+  Hf("D"): 82930;
+  Hf("E"): -123140;
+
+Gf(Componentlist) As RealVariable 
+(Description:" Gibbs free energy of formation(J/mol)", Fixed);
+  Gf("A"):-31855;
+  Gf("B"): 68460;
+  Gf("C"):0;
+  Gf("D"): 129665;
+  Gf("E"): 31920; 
+
+  // Difference (delta) of Heat Capacity Expansion Coefficients for the primary reaction
+  dA As RealVariable(Description:"delta A => Products- Reactants");
+  dA= Acp("B") + Acp("C") -  Acp("A");
+  
+  dB As RealVariable(Description:"delta B ");
+  dB= Bcp("B") + Bcp("C") -  Bcp("A");
+  
+  dC As RealVariable(Description:"delta C");
+  dC= Ccp("B") + Ccp("C") -  Ccp("A");
+
+  dD As RealVariable(Description:"delta D");
+  dD= Dcp("B") + Dcp("C") -  Dcp("A");
+  
+  dGf As RealVariable(Description:"delta Gibbs");
+  dGf = Gf("B") - Gf("A");
+  
+  dHf As RealVariable(Description:"delta H");
+  dHf = Hf("B") - Hf("A");
+  
+  dH As RealVariable(Description:"delta H");
+  dH = dGf- dHf;
+  I0 As RealVariable(Description:"Reference Equilibrium constant");
+
+// Reaction Kinetics for the primary reaction:
+  Rx1 = k1 *(Pi("A") - (Pi("B")*Pi("C"))/Keq); // (2)
+  k1 = 4.39 * exp(-9090.69 / T); //(3)
+  LOGe(Keq) = - dH/(R*T) + dA*LOGe(T)/R + dB *T/(2*R) + dC *T^2/(6*R) +dD*T^3/(12*R) +I0; //(4)
+  I0 = dH/(R*T0) - dA*LOGe(T0)/R - dB *T0/ (2*R) - dC*T0^2/(6*R) - dD*T0^3/(12*R) - dGf/(R*T0); //(5)
+
+// Reaction Kinetics for the auxiliary reaction:
+  Rx2 = k2 * KB* Pi("C")* Pi("D")/( (1+ KB*Pi("D"))* (Pi("C")+ Pi("D")));
+  k2= 121.11 * exp(-6038.65/T);//(8)
+  KB= 788*exp(-3019.32/T);//(9)
+
+//Hydrogen Permeation rate:
+  QH2 As RealVariable(Description:"H2 permation rate ");
+  Q0 As RealVariable(Description:"permeability constant (kg mol m/m2 s Pa0.5)");
+
+  QH2= Q0 *(A/delta)* (sqrt(Pi("C")) - sqrt(Ps("C"))) //(10)
+  Q0 = 1.0061*10^(-12) *exp(-767.38/T); //(11)
+
+// Tube side
+//12
+//13
+//14
+
+// Ceramic Side
+//15
+//16
+//17
+//18
+
+ /* Basic model   
+  Kc  As RealVariable
+    (Description:"Equilibrium constant [mol/dm3]", Fixed, 5E-2);
+  k   As RealVariable
+    (Description:"Reaction rate constant [1/min]", Fixed, 0.7);
+  Cto As RealVariable
+    (Description:"Total molar concentration [mol/dm3]");
+  kc_ As RealVariable
+    (Description:"Transport coefficient [1/min]" , Fixed, 0.2);
+
+  V   As LengthDomain (DiscretizationMethod:"OCFE4",
+                        HighestOrderDerivative:1,
+                        Length:500,
+                        NumSections:2,
+                        SpacingPreference:5,
+                        Section(2).Location:100,
+                        Section(2).SpacingPreference:20);
+
+  Fa As Distribution1D(XDomain Is V, HighestOrderXDerivative:1)
+                        Of RealVariable(0); // [mol/min]
+  Fb As Distribution1D(XDomain Is V, HighestOrderXDerivative:1)
+                        Of RealVariable(0); // [mol/min]
+  Fc As Distribution1D(XDomain Is V, HighestOrderXDerivative:1)
+                        Of RealVariable(0); // [mol/min]
+  Fd As Distribution1D(XDomain Is V, HighestOrderXDerivative:1)
+                        Of RealVariable(0); // [mol/min]
+  Fe As Distribution1D(XDomain Is V, HighestOrderXDerivative:1)
+                        Of RealVariable(0); // [mol/min]
+                        
+  Nodes As IntegerSet([0 + V.Interior + V.EndNode]);
+  Ft(Nodes) As RealVariable; // [mol/min]
+  ra(Nodes) As RealVariable;
+
+  P         As pressure (Fixed, 8.308649999999998);
+  Q         As enthflow;
+
+  // Inlet conditions
+  Fin       As RealVariable (Description:"Feed in", Fixed, 10) ; // [mol/min]
+  zin(Componentlist) As molefraction (Fixed);
+  hin       As enth_mol (Fixed,-0.08621361071361455) ;
+  Vin       As vol_mol (Fixed, 4.889630946135765);
+  MWin      As molweight;
+  zin("A"):1;
+  zin("B"): 0;
+  zin("C"):0;
+  zin("D"): 0;
+  zin("E"):0;
+  Cto = 1 / Vin*De ;
+
+  
+ // Retentate variables
+  Fret      As RealVariable; // [mol/min]
+  zret(Componentlist) As molefraction;
+  hret      As enth_mol;
+  rhoVret   As dens_mol;
+  Vret      As vol_mol;
+  MWret     As molweight;
+
+  // Permeate variables
+  Fper      As RealVariable; // [mol/min]
+  zper(Componentlist) As molefraction;
+  hper      As enth_mol;
+  rhoVper   As dens_mol;
+  Vper      As vol_mol;
+  MWper     As molweight;
+
+
+  
+  // Boundary condition (Inlet)
+  Fa(0) = Fin * zin("A") ;
+  Fb(0) = Fin * zin("B") ;
+  Fc(0) = Fin * zin("C") ;
+  Fd(0) = Fin * zin("D") ;
+  Fe(0) = Fin * zin("E") ; 
+
+  // Component mole balances
+  For i In [V.Interior + V.EndNode] Do
+    Fa(i).ddx = -ra(i) ;
+    Fb(i).ddx =  ra(i) - kc_ * Cto * (Fb(i)/Ft(i)) ;
+    Fc(i).ddx =  ra(i) ;
+    Fd(i).ddx =  0 ;
+    Fe(i).ddx =  0 ;
+
+  EndFor
+
+   // Total molar flow
+  Ft = Fa + Fb + Fc ;
+
+   // Reaction rate
+  ra = k * Cto * ((Fa/Ft) - Cto/Kc * (Fb/Ft) * (Fc/Ft)) ;
+
+  // Average molar weight
+  Call (MWin)  = pMolWeight(zin)  ;
+  Call (MWret) = pMolWeight(zret) ;
+  Call (MWper) = pMolWeight(zper) ;
+
+  // Specific Vapor Molar Enthalpy
+  Call (hret) = pEnth_Mol_Vap(T, P, zret) ;
+  Call (hper) = pEnth_Mol_Vap(T, P, zper) ;
+
+  // Specific Vapor Molar Density
+  Call (rhoVret) = pDens_Mol_Vap(T, P, zret) ;
+  Call (rhoVper) = pDens_Mol_Vap(T, P, zper) ;
+
+  // Mass Balance
+  Fin * MWin = Fret * MWret + Fper * MWper ;
+
+  // Heat Balance
+  Fin * hin + Q * 1000 / 60 = Fret * hret + Fper * hper ;
+    // Retentate condition
+  Fret = Ft(V.EndNode) ;
+  zret("A") = Fa(V.EndNode)/Ft(V.EndNode) ;
+  zret("B") = Fb(V.EndNode)/Ft(V.EndNode) ;
+  zret("C") = Fc(V.EndNode)/Ft(V.EndNode) ;
+  zret("D") = 0/Ft(V.EndNode) ;
+  zret("E") = 0/Ft(V.EndNode) ;
+
+    // Permeate condition
+  zper("A") = 0 ;
+  zper("B") = 1 ;
+  zper("C") = 0 ;
+  zper("D") = 0 ;
+  zper("E") = 0 ;
+  Vper = 1 / rhoVper ;
+  
+*/
+
+End
+//UNCOMPILED SECTION END
 
 //SYSTEM SECTION END
 End
@@ -257,7 +675,6 @@ CONSTRAINTS
   // Flowsheet variables and equations...
 END
 
-
 //SYSTEM SECTION - WARNING: DO NOT EDIT
 SystemData : Text
 <FORMLIST DEFAULTFORM="AllVariables">
@@ -266,357 +683,9 @@ EndText;
 
 //SYSTEM SECTION END
   ActiveTasks : [];
-  B1.Cto : 3.067716186607986e-002;
-  B1.Fa.ddx(0) : -2.147376809490931e-002;
-  B1.Fa.ddx(1) : -2.126789262532859e-002;
-  B1.Fa.ddx(10) : -1.75934774632171e-002;
-  B1.Fa.ddx(11) : -1.709898843549479e-002;
-  B1.Fa.ddx(12) : -1.695945296398476e-002;
-  B1.Fa.ddx(13) : -1.682197292687175e-002;
-  B1.Fa.ddx(14) : -1.636291887956227e-002;
-  B1.Fa.ddx(15) : -1.592423294442862e-002;
-  B1.Fa.ddx(16) : -1.580020541684339e-002;
-  B1.Fa.ddx(17) : -1.567788857318123e-002;
-  B1.Fa.ddx(18) : -1.526877656399237e-002;
-  B1.Fa.ddx(19) : -1.487677483132899e-002;
-  B1.Fa.ddx(2) : -2.05853789811184e-002;
-  B1.Fa.ddx(20) : -1.476576130641902e-002;
-  B1.Fa.ddx(21) : -1.433482897200817e-002;
-  B1.Fa.ddx(22) : -1.29967070245085e-002;
-  B1.Fa.ddx(23) : -1.184437671509774e-002;
-  B1.Fa.ddx(24) : -1.153845665575022e-002;
-  B1.Fa.ddx(25) : -1.124453630840504e-002;
-  B1.Fa.ddx(26) : -1.031535635768045e-002;
-  B1.Fa.ddx(27) : -9.495429741926837e-003;
-  B1.Fa.ddx(28) : -9.274665695056424e-003;
-  B1.Fa.ddx(29) : -9.061232622937119e-003;
-  B1.Fa.ddx(3) : -1.994026706151859e-002;
-  B1.Fa.ddx(30) : -8.378957381618658e-003;
-  B1.Fa.ddx(31) : -7.766944684663663e-003;
-  B1.Fa.ddx(32) : -7.600567098519995e-003;
-  B1.Fa.ddx(33) : -7.439072568876106e-003;
-  B1.Fa.ddx(34) : -6.918592612701321e-003;
-  B1.Fa.ddx(35) : -6.446223811539132e-003;
-  B1.Fa.ddx(36) : -6.316911760556633e-003;
-  B1.Fa.ddx(37) : -6.191101676533715e-003;
-  B1.Fa.ddx(38) : -5.782985494004883e-003;
-  B1.Fa.ddx(39) : -5.409335762658445e-003;
-  B1.Fa.ddx(4) : -1.975911340638994e-002;
-  B1.Fa.ddx(40) : -5.306506808325428e-003;
-  B1.Fa.ddx(5) : -1.958080785661744e-002;
-  B1.Fa.ddx(6) : -1.898867895095388e-002;
-  B1.Fa.ddx(7) : -1.842661478557986e-002;
-  B1.Fa.ddx(8) : -1.826836532885203e-002;
-  B1.Fa.ddx(9) : -1.811253351626093e-002;
-  B1.Fa.Value(0) : 10.;
-  B1.Fa.Value(1) : 9.951830095634582;
-  B1.Fa.Value(10) : 9.028872930101192;
-  B1.Fa.Value(11) : 8.894525482929241;
-  B1.Fa.Value(12) : 8.856141439978705;
-  B1.Fa.Value(13) : 8.818069612933774;
-  B1.Fa.Value(14) : 8.689558864469124;
-  B1.Fa.Value(15) : 8.564524536346923;
-  B1.Fa.Value(16) : 8.528770892217338;
-  B1.Fa.Value(17) : 8.493294914059909;
-  B1.Fa.Value(18) : 8.373450572021818;
-  B1.Fa.Value(19) : 8.25670857800608;
-  B1.Fa.Value(2) : 9.789758478985942;
-  B1.Fa.Value(20) : 8.223301223903656;
-  B1.Fa.Value(21) : 8.09213424681656;
-  B1.Fa.Value(22) : 7.66924570319057;
-  B1.Fa.Value(23) : 7.284841350387415;
-  B1.Fa.Value(24) : 7.179439098346708;
-  B1.Fa.Value(25) : 7.076742104717349;
-  B1.Fa.Value(26) : 6.743044482760009;
-  B1.Fa.Value(27) : 6.436396413787683;
-  B1.Fa.Value(28) : 6.351785228077272;
-  B1.Fa.Value(29) : 6.269132364242489;
-  B1.Fa.Value(3) : 9.632827164798574;
-  B1.Fa.Value(30) : 5.999145259994911;
-  B1.Fa.Value(31) : 5.749183261968149;
-  B1.Fa.Value(32) : 5.679909269697324;
-  B1.Fa.Value(33) : 5.612113905159301;
-  B1.Fa.Value(34) : 5.389818490143871;
-  B1.Fa.Value(35) : 5.182888803332725;
-  B1.Fa.Value(36) : 5.12535439311189;
-  B1.Fa.Value(37) : 5.068970210961967;
-  B1.Fa.Value(38) : 4.883562869777552;
-  B1.Fa.Value(39) : 4.710256818197849;
-  B1.Fa.Value(4) : 9.588085873585639;
-  B1.Fa.Value(40) : 4.66195102745064;
-  B1.Fa.Value(5) : 9.543749890013297;
-  B1.Fa.Value(6) : 9.394391301719772;
-  B1.Fa.Value(7) : 9.249501799204987;
-  B1.Fa.Value(8) : 9.20814641252975;
-  B1.Fa.Value(9) : 9.167145075272179;
-  B1.Fb.ddx(0) : 2.147376129123384e-002;
-  B1.Fb.ddx(1) : 2.123850018938589e-002;
-  B1.Fb.ddx(10) : 1.705768915685421e-002;
-  B1.Fb.ddx(11) : 1.649755621679262e-002;
-  B1.Fb.ddx(12) : 1.633960441173653e-002;
-  B1.Fb.ddx(13) : 1.618403532590083e-002;
-  B1.Fb.ddx(14) : 1.5664886509992e-002;
-  B1.Fb.ddx(15) : 1.516925341907278e-002;
-  B1.Fb.ddx(16) : 1.502921130493226e-002;
-  B1.Fb.ddx(17) : 1.489114552920149e-002;
-  B1.Fb.ddx(18) : 1.442960716154682e-002;
-  B1.Fb.ddx(19) : 1.398776496228434e-002;
-  B1.Fb.ddx(2) : 2.045941897973593e-002;
-  B1.Fb.ddx(20) : 1.386270731862904e-002;
-  B1.Fb.ddx(21) : 1.337755796955448e-002;
-  B1.Fb.ddx(22) : 1.18741705883642e-002;
-  B1.Fb.ddx(23) : 1.058346550185313e-002;
-  B1.Fb.ddx(24) : 1.024146057656653e-002;
-  B1.Fb.ddx(25) : 9.913147464989353e-003;
-  B1.Fb.ddx(26) : 8.877035408439879e-003;
-  B1.Fb.ddx(27) : 7.965222229743336e-003;
-  B1.Fb.ddx(28) : 7.720147142720671e-003;
-  B1.Fb.ddx(29) : 7.483393937291822e-003;
-  B1.Fb.ddx(3) : 1.97240917294472e-002;
-  B1.Fb.ddx(30) : 6.72785490193212e-003;
-  B1.Fb.ddx(31) : 6.051938380503054e-003;
-  B1.Fb.ddx(32) : 5.868513424274757e-003;
-  B1.Fb.ddx(33) : 5.690613894552986e-003;
-  B1.Fb.ddx(34) : 5.118274027393819e-003;
-  B1.Fb.ddx(35) : 4.60030676379165e-003;
-  B1.Fb.ddx(36) : 4.458779792404469e-003;
-  B1.Fb.ddx(37) : 4.321210865120996e-003;
-  B1.Fb.ddx(38) : 3.875787314247734e-003;
-  B1.Fb.ddx(39) : 3.46923991169021e-003;
-  B1.Fb.ddx(4) : 1.951778855519065e-002;
-  B1.Fb.ddx(40) : 3.357589704626425e-003;
-  B1.Fb.ddx(5) : 1.93148082999776e-002;
-  B1.Fb.ddx(6) : 1.864129122092255e-002;
-  B1.Fb.ddx(7) : 1.800275799547057e-002;
-  B1.Fb.ddx(8) : 1.782311646524249e-002;
-  B1.Fb.ddx(9) : 1.764628613936743e-002;
-  B1.Fb.Value(1) : 4.813665852623598e-002;
-  B1.Fb.Value(10) : 0.9568119662902552;
-  B1.Fb.Value(11) : 1.086752584702479;
-  B1.Fb.Value(12) : 1.12376016860562;
-  B1.Fb.Value(13) : 1.160414430658467;
-  B1.Fb.Value(14) : 1.283748888395089;
-  B1.Fb.Value(15) : 1.403153795891166;
-  B1.Fb.Value(16) : 1.437187597735648;
-  B1.Fb.Value(17) : 1.470907967312265;
-  B1.Fb.Value(18) : 1.584453458419175;
-  B1.Fb.Value(19) : 1.694500662726726;
-  B1.Fb.Value(2) : 0.2096022951750312;
-  B1.Fb.Value(20) : 1.72588829459717;
-  B1.Fb.Value(21) : 1.84866577982362;
-  B1.Fb.Value(22) : 2.239256879579748;
-  B1.Fb.Value(23) : 2.586675571469252;
-  B1.Fb.Value(24) : 2.680545344843321;
-  B1.Fb.Value(25) : 2.771392082002642;
-  B1.Fb.Value(26) : 3.062139176164186;
-  B1.Fb.Value(27) : 3.322763941026393;
-  B1.Fb.Value(28) : 3.393468230580237;
-  B1.Fb.Value(29) : 3.461999448710134;
-  B1.Fb.Value(3) : 0.365204632633553;
-  B1.Fb.Value(30) : 3.681938032644978;
-  B1.Fb.Value(31) : 3.879730449401055;
-  B1.Fb.Value(32) : 3.933464387423819;
-  B1.Fb.Value(33) : 3.985568925272182;
-  B1.Fb.Value(34) : 4.152869737198912;
-  B1.Fb.Value(35) : 4.30329736817407;
-  B1.Fb.Value(36) : 4.344133354083757;
-  B1.Fb.Value(37) : 4.383711143208373;
-  B1.Fb.Value(38) : 4.510592088083065;
-  B1.Fb.Value(39) : 4.624285685998149;
-  B1.Fb.Value(4) : 0.4094302241046039;
-  B1.Fb.Value(40) : 4.655059318062927;
-  B1.Fb.Value(5) : 0.4531943588441071;
-  B1.Fb.Value(6) : 0.6001739931963327;
-  B1.Fb.Value(7) : 0.7420734593312969;
-  B1.Fb.Value(8) : 0.7824492798465699;
-  B1.Fb.Value(9) : 0.8224233021096102;
-  B1.Fc.ddx(0) : 2.147376809491028e-002;
-  B1.Fc.ddx(1) : 2.126789262532859e-002;
-  B1.Fc.ddx(10) : 1.75934774632171e-002;
-  B1.Fc.ddx(11) : 1.709898843549479e-002;
-  B1.Fc.ddx(12) : 1.695945296398476e-002;
-  B1.Fc.ddx(13) : 1.682197292687175e-002;
-  B1.Fc.ddx(14) : 1.636291887956227e-002;
-  B1.Fc.ddx(15) : 1.592423294442862e-002;
-  B1.Fc.ddx(16) : 1.580020541684339e-002;
-  B1.Fc.ddx(17) : 1.567788857318123e-002;
-  B1.Fc.ddx(18) : 1.526877656399237e-002;
-  B1.Fc.ddx(19) : 1.487677483132899e-002;
-  B1.Fc.ddx(2) : 2.05853789811184e-002;
-  B1.Fc.ddx(20) : 1.476576130641902e-002;
-  B1.Fc.ddx(21) : 1.433482897200817e-002;
-  B1.Fc.ddx(22) : 1.29967070245085e-002;
-  B1.Fc.ddx(23) : 1.184437671509774e-002;
-  B1.Fc.ddx(24) : 1.153845665575022e-002;
-  B1.Fc.ddx(25) : 1.124453630840504e-002;
-  B1.Fc.ddx(26) : 1.031535635768045e-002;
-  B1.Fc.ddx(27) : 9.495429741926837e-003;
-  B1.Fc.ddx(28) : 9.274665695056424e-003;
-  B1.Fc.ddx(29) : 9.061232622937119e-003;
-  B1.Fc.ddx(3) : 1.994026706151859e-002;
-  B1.Fc.ddx(30) : 8.378957381618658e-003;
-  B1.Fc.ddx(31) : 7.766944684663663e-003;
-  B1.Fc.ddx(32) : 7.600567098519995e-003;
-  B1.Fc.ddx(33) : 7.439072568876106e-003;
-  B1.Fc.ddx(34) : 6.918592612701321e-003;
-  B1.Fc.ddx(35) : 6.446223811539132e-003;
-  B1.Fc.ddx(36) : 6.316911760556633e-003;
-  B1.Fc.ddx(37) : 6.191101676533715e-003;
-  B1.Fc.ddx(38) : 5.782985494004882e-003;
-  B1.Fc.ddx(39) : 5.409335762658446e-003;
-  B1.Fc.ddx(4) : 1.975911340638994e-002;
-  B1.Fc.ddx(40) : 5.306506808325427e-003;
-  B1.Fc.ddx(5) : 1.958080785661744e-002;
-  B1.Fc.ddx(6) : 1.898867895095388e-002;
-  B1.Fc.ddx(7) : 1.842661478557986e-002;
-  B1.Fc.ddx(8) : 1.826836532885203e-002;
-  B1.Fc.ddx(9) : 1.811253351626093e-002;
-  B1.Fc.Value(1) : 4.816990436541904e-002;
-  B1.Fc.Value(10) : 0.9711270698988083;
-  B1.Fc.Value(11) : 1.105474517070762;
-  B1.Fc.Value(12) : 1.143858560021297;
-  B1.Fc.Value(13) : 1.181930387066229;
-  B1.Fc.Value(14) : 1.310441135530878;
-  B1.Fc.Value(15) : 1.435475463653081;
-  B1.Fc.Value(16) : 1.471229107782666;
-  B1.Fc.Value(17) : 1.506705085940095;
-  B1.Fc.Value(18) : 1.626549427978185;
-  B1.Fc.Value(19) : 1.743291421993923;
-  B1.Fc.Value(2) : 0.2102415210140576;
-  B1.Fc.Value(20) : 1.776698776096347;
-  B1.Fc.Value(21) : 1.907865753183443;
-  B1.Fc.Value(22) : 2.330754296809433;
-  B1.Fc.Value(23) : 2.715158649612588;
-  B1.Fc.Value(24) : 2.820560901653295;
-  B1.Fc.Value(25) : 2.923257895282655;
-  B1.Fc.Value(26) : 3.256955517239994;
-  B1.Fc.Value(27) : 3.563603586212322;
-  B1.Fc.Value(28) : 3.648214771922732;
-  B1.Fc.Value(29) : 3.730867635757515;
-  B1.Fc.Value(3) : 0.3671728352014279;
-  B1.Fc.Value(30) : 4.000854740005094;
-  B1.Fc.Value(31) : 4.250816738031857;
-  B1.Fc.Value(32) : 4.320090730302682;
-  B1.Fc.Value(33) : 4.387886094840705;
-  B1.Fc.Value(34) : 4.610181509856132;
-  B1.Fc.Value(35) : 4.81711119666728;
-  B1.Fc.Value(36) : 4.874645606888115;
-  B1.Fc.Value(37) : 4.931029789038038;
-  B1.Fc.Value(38) : 5.116437130222452;
-  B1.Fc.Value(39) : 5.289743181802157;
-  B1.Fc.Value(4) : 0.4119141264143614;
-  B1.Fc.Value(40) : 5.338048972549364;
-  B1.Fc.Value(5) : 0.4562501099867026;
-  B1.Fc.Value(6) : 0.6056086982802283;
-  B1.Fc.Value(7) : 0.7504982007950118;
-  B1.Fc.Value(8) : 0.7918535874702498;
-  B1.Fc.Value(9) : 0.8328549247278226;
-  B1.Fper : 0.6829896544864313;
-  B1.Fret : 14.65505931806293;
-  B1.Ft(0) : 10.;
-  B1.Ft(1) : 10.04813665852624;
-  B1.Ft(10) : 10.95681196629026;
-  B1.Ft(11) : 11.08675258470248;
-  B1.Ft(12) : 11.12376016860562;
-  B1.Ft(13) : 11.16041443065847;
-  B1.Ft(14) : 11.28374888839509;
-  B1.Ft(15) : 11.40315379589117;
-  B1.Ft(16) : 11.43718759773565;
-  B1.Ft(17) : 11.47090796731227;
-  B1.Ft(18) : 11.58445345841918;
-  B1.Ft(19) : 11.69450066272673;
-  B1.Ft(2) : 10.20960229517503;
-  B1.Ft(20) : 11.72588829459717;
-  B1.Ft(21) : 11.84866577982362;
-  B1.Ft(22) : 12.23925687957975;
-  B1.Ft(23) : 12.58667557146926;
-  B1.Ft(24) : 12.68054534484332;
-  B1.Ft(25) : 12.77139208200265;
-  B1.Ft(26) : 13.06213917616419;
-  B1.Ft(27) : 13.3227639410264;
-  B1.Ft(28) : 13.39346823058024;
-  B1.Ft(29) : 13.46199944871014;
-  B1.Ft(3) : 10.36520463263355;
-  B1.Ft(30) : 13.68193803264498;
-  B1.Ft(31) : 13.87973044940106;
-  B1.Ft(32) : 13.93346438742383;
-  B1.Ft(33) : 13.98556892527219;
-  B1.Ft(34) : 14.15286973719891;
-  B1.Ft(35) : 14.30329736817407;
-  B1.Ft(36) : 14.34413335408376;
-  B1.Ft(37) : 14.38371114320838;
-  B1.Ft(38) : 14.51059208808307;
-  B1.Ft(39) : 14.62428568599816;
-  B1.Ft(4) : 10.4094302241046;
-  B1.Ft(40) : 14.65505931806293;
-  B1.Ft(5) : 10.45319435884411;
-  B1.Ft(6) : 10.60017399319633;
-  B1.Ft(7) : 10.7420734593313;
-  B1.Ft(8) : 10.78244927984657;
-  B1.Ft(9) : 10.82242330210961;
-  B1.hper : 6.306306470341436e-002;
-  B1.hret : -3.055964523870133e-004;
-  B1.MWin : 30.06964000000001;
-  B1.MWper : 28.05376000000001;
-  B1.MWret : 19.21083811674175;
-  B1.Q : 5.404373962629987e-002;
-  B1.ra(0) : 2.14740133062559e-002;
-  B1.ra(1) : 2.126789262532859e-002;
-  B1.ra(10) : 1.75934774632171e-002;
-  B1.ra(11) : 1.709898843549479e-002;
-  B1.ra(12) : 1.695945296398476e-002;
-  B1.ra(13) : 1.682197292687175e-002;
-  B1.ra(14) : 1.636291887956227e-002;
-  B1.ra(15) : 1.592423294442862e-002;
-  B1.ra(16) : 1.580020541684339e-002;
-  B1.ra(17) : 1.567788857318123e-002;
-  B1.ra(18) : 1.526877656399237e-002;
-  B1.ra(19) : 1.487677483132899e-002;
-  B1.ra(2) : 2.05853789811184e-002;
-  B1.ra(20) : 1.476576130641902e-002;
-  B1.ra(21) : 1.433482897200817e-002;
-  B1.ra(22) : 1.29967070245085e-002;
-  B1.ra(23) : 1.184437671509774e-002;
-  B1.ra(24) : 1.153845665575022e-002;
-  B1.ra(25) : 1.124453630840504e-002;
-  B1.ra(26) : 1.031535635768045e-002;
-  B1.ra(27) : 9.495429741926837e-003;
-  B1.ra(28) : 9.274665695056424e-003;
-  B1.ra(29) : 9.061232622937119e-003;
-  B1.ra(3) : 1.994026706151859e-002;
-  B1.ra(30) : 8.378957381618658e-003;
-  B1.ra(31) : 7.766944684663663e-003;
-  B1.ra(32) : 7.600567098519995e-003;
-  B1.ra(33) : 7.439072568876106e-003;
-  B1.ra(34) : 6.918592612701321e-003;
-  B1.ra(35) : 6.446223811539132e-003;
-  B1.ra(36) : 6.316911760556633e-003;
-  B1.ra(37) : 6.191101676533715e-003;
-  B1.ra(38) : 5.782985494004882e-003;
-  B1.ra(39) : 5.409335762658446e-003;
-  B1.ra(4) : 1.975911340638994e-002;
-  B1.ra(40) : 5.306506808325427e-003;
-  B1.ra(5) : 1.958080785661744e-002;
-  B1.ra(6) : 1.898867895095388e-002;
-  B1.ra(7) : 1.842661478557986e-002;
-  B1.ra(8) : 1.826836532885203e-002;
-  B1.ra(9) : 1.811253351626093e-002;
-  B1.rhoVper : 0.2010105059535341;
-  B1.rhoVret : 0.1998702201738008;
-  B1.Vper : 4.974864349782601;
-  B1.zper("A") : 0.;
-  B1.zper("B") : 1.;
-  B1.zper("C") : 0.;
-  B1.zper("D") : 0.;
-  B1.zper("E") : 0.;
-  B1.zret("A") : 0.3181120544291898;
-  B1.zret("B") : 0.3176417929830816;
-  B1.zret("C") : 0.3642461525877286;
-  B1.zret("D") : 0.;
-  B1.zret("E") : 0.;
   Graphics : TEXT CLSID {A0DFFFE6-908E-11CE-A964-0000C08C668E}
 # of PFS Objects = 2
-SIZE -3.37864 -2.37864 0.145465 1.44547
+SIZE -3.37864 -2.37864 0.145465 1.44546
 BLOCK
 ID: B1
 Version: 1
@@ -628,11 +697,11 @@ Label At 0.000000 0.000000
 Scale 1.000000 Modifier 0
 LEGEND
 Version: 2
-Dim: -4.24117 -3.2 -3.09917 -3.42601
-Size: 0.0078759
+Dim: -4.24117 -3.2 -3.09871 -3.42756
+Size: 0.00790547
 Font: 1 0 =Times New Roman
 # of PFS Objects = 0
-VIEWPORT -7.430907 0.988424 3.300000 -1.110502
+VIEWPORT -7.430907 -0.070910 3.300000 -3.261544
 LAYOUT
 TableFormat 1
 Pages 1 1 1 1
@@ -648,7 +717,7 @@ BOTTOMMARGIN 0.5"
 VISIBILITY 0.030000
 PFDFLAG 255 255
 PFDMODE 0
-SCALE 0.007876
+SCALE 0.007905
 
 ENDTEXT;
 END
